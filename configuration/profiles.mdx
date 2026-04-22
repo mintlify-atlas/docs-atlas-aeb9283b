@@ -1,0 +1,115 @@
+---
+title: "Profiles: save and reuse HTTP headers per target domain"
+description: "Learn how InQL profiles store custom HTTP headers for a specific host so you can load authentication credentials instantly when scanning the same target again."
+---
+
+A profile is a named set of custom HTTP headers tied to a specific host. Profiles let you save the `Authorization` header, API keys, or any other domain-specific headers once and reload them instantly whenever you open a new scanner tab for the same target. Without profiles, you would need to re-paste authentication headers every time you start a new scan or switch between projects.
+
+## What a profile stores
+
+Each profile contains three pieces of data:
+
+- **Name** — a human-readable label you choose when creating the profile
+- **Host** — the target domain the profile belongs to (for example, `api.example.com`)
+- **Custom headers** — a key/value map of HTTP headers to inject into the request template
+
+Standard request headers that InQL manages automatically — such as `Host`, `Content-Type`, `Content-Length`, `Accept`, and `Cache-Control` — are excluded from profile storage even if they are present in the request template when you save.
+
+## Profile IDs
+
+Every profile has a stable ID derived from its name. InQL generates the ID by:
+
+1. Replacing whitespace runs with `-`
+2. Replacing any character that is not alphanumeric or `-` with `_`
+3. Converting everything to lowercase
+
+For example, a profile named `My API (Staging)` gets the ID `my-api--staging_`. If a profile with that ID already exists, InQL appends a counter: `my-api--staging_-1`, `my-api--staging_-2`, and so on. Profile IDs are stable after creation — renaming a profile does not change its ID.
+
+The ID is used internally as the persistence key in Burp's project file (`Profile.<id>`).
+
+## Creating a profile
+
+<Steps>
+  <Step title="Open a Scanner tab">
+    In Burp Suite, click the **InQL** tab and select **Scanner** from the top navigation. Open a new scanner tab if one is not already open.
+  </Step>
+  <Step title="Enter the target URL">
+    Type the GraphQL endpoint URL into the **Target** field. InQL derives the profile's host from this URL, so a valid URL must be present before you create a profile.
+  </Step>
+  <Step title="Open the profile dropdown">
+    In the **Request Template** section, click the profile dropdown. It defaults to **None**.
+  </Step>
+  <Step title="Select (New)">
+    Choose **(New)** from the dropdown. A dialog appears prompting you to choose a name for the new profile. InQL pre-fills the name field with a suggested ID based on the target host.
+  </Step>
+  <Step title="Name the profile and confirm">
+    Type a name and click **OK**. InQL creates the profile, adds it to the dropdown, and automatically saves the current request template headers into it.
+  </Step>
+</Steps>
+
+<Note>
+The profile is created for the host extracted from the URL field. If the URL field is empty or contains an invalid URL, InQL shows an error and does not create the profile.
+</Note>
+
+## Loading headers from a profile
+
+When you select an existing profile from the dropdown and click **Load**, InQL merges the profile's stored headers into the current request template. Headers from the profile are added or updated in place — the rest of the template is left unchanged.
+
+This makes it easy to switch between multiple credential sets for the same host without losing other customizations in the template.
+
+## Saving headers to a profile
+
+After editing the request template manually, click **Save** to overwrite the selected profile's header set with the current template's non-default headers. The profile's name and host are not affected.
+
+## Updating headers from Burp proxy history
+
+Click **Fetch latest headers** in the Scanner tab to have InQL inspect Burp's proxy history for the current target host and pull in any headers it finds there. This is useful for capturing an active session cookie or a refreshed bearer token observed in intercepted traffic, without copying and pasting manually.
+
+## Deleting a profile
+
+Select the profile you want to remove from the dropdown and click **Delete**. InQL removes the profile from the project file immediately. If the deleted profile was linked to the current scanner tab, the tab reverts to the **None** profile.
+
+## Linking a profile to a scanner tab
+
+Each scanner tab can have one linked profile at a time. When a profile is linked, its name appears as a suffix in the tab title — for example, `api.example.com [Staging]`. The linked profile is saved in the project file alongside the tab, so it is restored automatically when you reopen the project.
+
+<CardGroup cols={2}>
+  <Card title="Load" icon="download">
+    Copies the profile's stored headers into the current request template. Use this after opening a project to restore your session headers.
+  </Card>
+  <Card title="Save" icon="floppy-disk">
+    Overwrites the profile's stored headers with the headers currently in the request template. Use this after refreshing a token to keep the profile up to date.
+  </Card>
+  <Card title="Fetch latest headers" icon="arrows-rotate">
+    Pulls the most recent headers for the target host from Burp's proxy history. Use this to capture a live session without copying manually.
+  </Card>
+  <Card title="Delete" icon="trash">
+    Permanently removes the profile from the project file. This cannot be undone.
+  </Card>
+</CardGroup>
+
+## Example: setting an Authorization header
+
+The most common use for profiles is storing a `Bearer` token for authenticated endpoints. After you obtain a token through Burp's proxy, the typical workflow is:
+
+<Steps>
+  <Step title="Capture the token">
+    Browse the target application through Burp's proxy. Find a request in proxy history that includes the `Authorization` header with a valid bearer token.
+  </Step>
+  <Step title="Open a Scanner tab and enter the URL">
+    In the **InQL** tab, open the **Scanner** and enter the endpoint URL.
+  </Step>
+  <Step title="Fetch headers from proxy history">
+    Click **Fetch latest headers**. InQL finds the most recent request to that host in proxy history and merges its headers — including `Authorization` — into the request template.
+  </Step>
+  <Step title="Create or save to a profile">
+    Select **(New)** from the profile dropdown, name the profile (for example, `example.com prod`), and click **OK**. InQL saves the headers including the token into the new profile.
+  </Step>
+  <Step title="Reload in future sessions">
+    The next time you open this project and start a Scanner tab for the same host, select the saved profile and click **Load** to restore the token immediately.
+  </Step>
+</Steps>
+
+<Warning>
+Profile headers are stored in plaintext in Burp's project file. Treat project files containing authentication tokens with the same care as any credential store — do not share them or commit them to version control.
+</Warning>

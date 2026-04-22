@@ -1,0 +1,86 @@
+{
+  "projectType": "general",
+  "projectName": "InQL",
+  "projectDescription": "InQL is a powerful Burp Suite extension for advanced GraphQL security testing, featuring automated schema scanning, vulnerability detection, batch query attacks, engine fingerprinting, and schema bruteforcing.",
+  "theme": "aspen",
+  "primaryColor": "#f0983b",
+  "lightColor": "#8e6339",
+  "darkColor": "#424347",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/scanner",
+              "features/batch-queries",
+              "features/engine-fingerprinting",
+              "features/schema-bruteforcer"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/settings",
+              "configuration/profiles",
+              "configuration/poi-categories"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "integrations/burp-suite",
+              "integrations/graphiql-voyager"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "development/contributing",
+              "development/building",
+              "development/architecture"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Automatic GraphQL schema introspection and query generation",
+    "Points of Interest (POI) vulnerability scanning across 7+ categories",
+    "Circular reference detection for potentially vulnerable queries",
+    "Batch query attack support for rate limit circumvention",
+    "GraphQL engine fingerprinting",
+    "Schema bruteforcing when introspection is disabled (Clairvoyance-based)",
+    "GraphiQL and GraphQL Voyager integration",
+    "Custom headers per domain with auto-population from Burp proxy history",
+    "Native Burp Suite message editor integration with GraphQL tab",
+    "Project-level state persistence across Burp sessions"
+  ],
+  "publicApiSurface": [
+    "Scanner - GraphQL endpoint and schema file analysis",
+    "ScannerTab - Individual scan session management",
+    "Attacker (Batch Queries) - Batch GraphQL attack execution",
+    "Fingerprinter - GraphQL engine identification",
+    "Bruteforcer - Schema discovery without introspection",
+    "POIScanner - Points of Interest vulnerability scanner",
+    "CyclesScanner - Circular reference detection",
+    "GQLSchema - GraphQL schema parsing and representation",
+    "Introspection - Automated introspection query handling",
+    "Config - Project and global settings management",
+    "Profile - Per-domain custom headers management",
+    "ExternalToolsService - GraphiQL/Voyager web server integration",
+    "BurpScannerCheck - Burp active/passive scanner integration",
+    "StyledPayloadEditor - GraphQL-aware request/response editor"
+  ]
+}

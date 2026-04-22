@@ -1,0 +1,174 @@
+---
+title: "Points of Interest: GraphQL vulnerability scan categories"
+description: "Reference for all InQL POI scanner categories, their keyword sets, individual config keys, and tips for triaging results during a GraphQL security assessment."
+---
+
+The Points of Interest (POI) scanner examines every field name in the GraphQL schema up to a configurable depth and matches them against keyword sets organized into security-relevant categories. Any field whose name matches a keyword in an enabled category is reported as a point of interest, giving you a prioritized list of fields worth investigating during a security assessment.
+
+POI results appear in a dedicated section of the Scanner results view after a scan completes. You can also click **Re-scan POI** in the InQL settings panel to re-run the scan against existing results after changing category settings, without re-fetching the schema.
+
+## How the scan works
+
+The scanner walks the schema graph starting from every root query, mutation, and subscription. At each node it checks the field name against the active keyword patterns using case-insensitive regex matching. The scan stops at the depth set by `report.poi.depth` (default: `2`). Increasing the depth finds more deeply nested fields but also increases scan time.
+
+Custom scalar types are handled separately: any scalar type that is not a built-in GraphQL type (`String`, `Int`, `Float`, `Boolean`, `ID`) is flagged independently of keyword matching.
+
+Deprecated fields are detected using the schema's `@deprecated` directive rather than keyword matching, so they are reported regardless of their name.
+
+## Enabling and disabling categories
+
+All POI settings are in the **Points of interest** section of the InQL settings panel. The master toggle `report.poi` must be enabled for any category results to appear. Individual categories can then be switched on or off independently.
+
+After changing any category setting, click **Re-scan POI** to apply the change to all currently loaded scan results.
+
+## Categories
+
+<AccordionGroup>
+  <Accordion title="Auth — authentication and authorization fields">
+
+    **Config key:** `report.poi.auth` — Default: `true`
+
+    Flags fields related to authentication, session management, and access control. These fields are high-priority targets for authorization bypass, token leakage, and privilege escalation testing.
+
+    **Keywords include:** `auth`, `login`, `logout`, `token`, `session`, `password`, `secret`, `permission`, `role`, `register`, `credential`, `api.?key`, `access.?key`, `otp`, `mfa`, `2fa`, `sign.?in`, `sign.?out`, `rbac`, and others.
+
+  </Accordion>
+  <Accordion title="Privileged — elevated-access operations">
+
+    **Config key:** `report.poi.privileged` — Default: `true`
+
+    Flags fields whose names suggest administrative or elevated-privilege operations. These are candidates for horizontal and vertical privilege escalation.
+
+    **Keywords include:** `admin`, `root`, `sudo`, `super.?user`, `access.?control`, `access.?level`.
+
+  </Accordion>
+  <Accordion title="PII — personally identifiable information">
+
+    **Config key:** `report.poi.pii` — Default: `true`
+
+    Flags fields that may return or accept personally identifiable information. Relevant for data exposure assessments and privacy compliance reviews.
+
+    **Keywords include:** `email`, `phone`, `address`, `ssn`, `passport`, `date.?of.?birth`, `dob`, `first.?name`, `last.?name`, `full.?name`, `national.?id`, `social.?security`, `tax.?id`, `driver.?license`, `postal.?code`, and others.
+
+  </Accordion>
+  <Accordion title="Payment — billing and financial fields">
+
+    **Config key:** `report.poi.payment` — Default: `true`
+
+    Flags fields related to payment processing, billing, and financial data. These are sensitive targets for data exposure, business logic flaws, and fraud testing.
+
+    **Keywords include:** `payment`, `billing`, `invoice`, `price`, `credit.?card`, `debit.?card`, `card.?number`, `card.?holder`, `card.?expiration`, `card.?security`, `cvv2`, `cvc2`, `currency`, `subscription`.
+
+  </Accordion>
+  <Accordion title="Database — direct database access fields">
+
+    **Config key:** `report.poi.database` — Default: `true`
+
+    Flags fields whose names suggest direct or thin-wrapper access to underlying database operations. These are candidates for injection testing and over-permissive data access.
+
+    **Keywords include:** `sql`, `mysql`, `postgresql`, `mongodb`, `redis`, `cassandra`, `sqlite`, `nosql`, `database`, `db`, `table`, `row`, `column`, `record`, `insert`, `update`, `delete`, `drop`, `create`, and others.
+
+  </Accordion>
+  <Accordion title="Debugging — debug and introspection helpers">
+
+    **Config key:** `report.poi.debugging` — Default: `true`
+
+    Flags fields that expose debugging information or audit logs. These fields often expose internal implementation details and should not be accessible in production environments.
+
+    **Keywords include:** `debug`, `trace`, `audit.?log`, `audit.?action`, `backup`.
+
+  </Accordion>
+  <Accordion title="Files — file system and media operations">
+
+    **Config key:** `report.poi.files` — Default: `true`
+
+    Flags fields related to file upload, download, and media handling. These are candidates for path traversal, unrestricted file upload, and server-side request forgery testing.
+
+    **Keywords include:** `file`, `upload`, `document`, `image`, `video`, `audio`, `media`, `binary`, `base.?64`.
+
+  </Accordion>
+  <Accordion title="Deprecated — schema-deprecated fields">
+
+    **Config key:** `report.poi.deprecated` — Default: `true`
+
+    Reports any field marked with the `@deprecated` directive in the schema. Unlike other categories, this detection is based on the directive rather than keyword matching, so it catches deprecated fields regardless of their name.
+
+    Deprecated fields are worth testing because they may still be functional, may lack the security controls applied to their replacements, and may represent forgotten or unmaintained attack surface.
+
+  </Accordion>
+  <Accordion title="Custom scalars — non-standard scalar types">
+
+    **Config key:** `report.poi.custom_scalars` — Default: `true`
+
+    Reports any scalar type that is not one of GraphQL's five built-in scalars (`String`, `Int`, `Float`, `Boolean`, `ID`). Custom scalars often represent domain-specific types — `JSON`, `Upload`, `DateTime`, `URL` — that may warrant additional scrutiny depending on how they are serialized and validated.
+
+  </Accordion>
+  <Accordion title="Custom keywords — user-defined patterns">
+
+    **Config key:** `report.poi.custom_keywords` — Default: `""` (empty)
+    **Show results toggle:** `report.poi.show_custom_keywords` — Default: `true`
+
+    Lets you define your own keyword patterns to match against field names. Enter one pattern per line in the **Custom keywords** text area in the settings panel. Each line is treated as a regex alternative and joined with `|` internally, so standard regex syntax applies.
+
+    Results from custom keywords only appear if `report.poi.show_custom_keywords` is enabled.
+
+    **Example custom keywords:**
+    ```text
+    internalApi
+    bypass
+    rawQuery
+    executeSql
+    ```
+
+  </Accordion>
+</AccordionGroup>
+
+## POI output format
+
+The `report.poi.format` setting controls how POI results are written to disk. It does not affect what is displayed in the Burp UI.
+
+| Value | Description |
+|---|---|
+| `text` | Plain text report (default) |
+| `json` | Structured JSON report, suitable for automated processing |
+| `both` | Writes both a text and a JSON report |
+
+## Triaging POI results
+
+<CardGroup cols={2}>
+  <Card title="Start with auth and privileged" icon="shield-halved">
+    Fields in the `auth` and `privileged` categories represent the most direct paths to authentication bypass and unauthorized access. Review these first.
+  </Card>
+  <Card title="Check deprecated fields carefully" icon="triangle-exclamation">
+    Deprecated fields often bypass newer validation or rate-limiting middleware. Test them explicitly — do not assume they are inert.
+  </Card>
+  <Card title="Investigate custom scalars" icon="cube">
+    A `JSON` or `Upload` scalar may accept arbitrary input that the type system does not validate. Check how these fields are handled server-side.
+  </Card>
+  <Card title="Use custom keywords for target context" icon="tag">
+    After reviewing the built-in results, add target-specific terms to `report.poi.custom_keywords`. Internal codenames, framework-specific patterns, or known sensitive field names from source code review are good candidates.
+  </Card>
+</CardGroup>
+
+<Tip>
+If a scan produces a large number of POI results, filter by operation type (query vs. mutation vs. subscription) and start with mutations — write operations are more likely to have exploitable business logic flaws than read-only queries.
+</Tip>
+
+## Configuration summary
+
+| Category | Config key | Default |
+|---|---|---|
+| Authentication | `report.poi.auth` | `true` |
+| Privileged access | `report.poi.privileged` | `true` |
+| PII | `report.poi.pii` | `true` |
+| Payment | `report.poi.payment` | `true` |
+| Database | `report.poi.database` | `true` |
+| Debugging | `report.poi.debugging` | `true` |
+| Files | `report.poi.files` | `true` |
+| Deprecated fields | `report.poi.deprecated` | `true` |
+| Custom scalars | `report.poi.custom_scalars` | `true` |
+| Custom keywords | `report.poi.custom_keywords` | `""` |
+| Show custom keyword results | `report.poi.show_custom_keywords` | `true` |
+| POI scan enabled | `report.poi` | `true` |
+| POI scan depth | `report.poi.depth` | `2` |
+| POI output format | `report.poi.format` | `"text"` |

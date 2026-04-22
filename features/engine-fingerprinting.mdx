@@ -1,0 +1,121 @@
+---
+title: "GraphQL engine fingerprinting: identify server technology"
+description: "Identify the GraphQL server library behind any target with InQL's Engine Fingerprinting tab, then look up CVEs and default configs from the Threat Matrix."
+---
+
+Knowing which GraphQL engine a server runs changes the character of a security assessment. Different libraries have different default behaviors around introspection, query depth limits, field suggestions, batching, and persisted queries — and each has its own CVE history. InQL's Engine Fingerprinting tab identifies the server library by sending a series of carefully crafted queries and comparing error messages against known signatures, then displays the matching entry from the [GraphQL Threat Matrix](https://github.com/nicholasaleks/graphql-threat-matrix).
+
+## How fingerprinting works
+
+InQL does not rely on HTTP headers or `__typename` values alone. It sends probes — often intentionally malformed queries — and inspects the exact wording and structure of the error responses. Each engine produces subtly different error messages for the same invalid input. For example:
+
+- **Apollo** returns `Directive \"@skip\" argument \"if\" of type \"Boolean!\" is required, but it was not provided.` when a directive is missing its required argument.
+- **Hasura** uses `query_root` as its default query type name, visible in `__typename` responses.
+- **graphql-java** includes `Invalid Syntax : offending token` in parse errors.
+- **Sangria** returns errors under a top-level `syntaxError` key rather than the standard `errors` array.
+
+InQL first verifies the endpoint is a GraphQL server by sending `query { __typename }` and checking the response. If the server does not respond like a GraphQL endpoint, fingerprinting stops immediately and reports that the server could not be confirmed.
+
+## Supported engines
+
+InQL can identify the following GraphQL server libraries:
+
+<Tabs>
+  <Tab title="JavaScript / Node.js">
+    | Engine | Technology |
+    |---|---|
+    | Apollo | JavaScript, Node.js, TypeScript |
+    | GraphQL Yoga | TypeScript |
+    | Mercurius | JavaScript, Node.js, TypeScript |
+  </Tab>
+  <Tab title="Python">
+    | Engine | Technology |
+    |---|---|
+    | Graphene | Python |
+    | Ariadne | Python |
+    | Strawberry | Python |
+    | Tartiflette | Python |
+  </Tab>
+  <Tab title="Java / JVM">
+    | Engine | Technology |
+    |---|---|
+    | graphql-java | Java |
+    | HyperGraphQL | Java |
+    | Sangria | Scala |
+    | Caliban | Scala |
+    | Lacinia | Clojure |
+    | Morpheus GraphQL | Haskell |
+  </Tab>
+  <Tab title="Go / Rust / Other">
+    | Engine | Technology |
+    |---|---|
+    | gqlgen | Go |
+    | graphql-go | Go |
+    | Inigo | Go |
+    | Juniper | Rust |
+    | pg_graphql | Rust |
+    | tailcall | Rust |
+    | graphql-dotnet | C#, .NET |
+    | Hot Chocolate | C#, .NET |
+    | Ruby GraphQL | Ruby |
+    | Agoo | Ruby |
+    | GraphQL PHP | PHP |
+    | Lighthouse | PHP |
+    | WPGraphQL | PHP |
+    | Diana.jl | Julia |
+    | Flutter (gql-dart) | Dart |
+    | Ballerina | Ballerina, Java |
+    | Dgraph | JavaScript |
+    | Directus | TypeScript |
+    | AWS AppSync | Managed service |
+    | Hasura | Haskell (managed) |
+  </Tab>
+</Tabs>
+
+## Running fingerprinting
+
+<Steps>
+  <Step title="Open the Engine Fingerprinting tab">
+    In Burp Suite, click the **InQL** extension tab, then select **Engine Fingerprinting** from the top navigation.
+  </Step>
+  <Step title="Set the target">
+    Enter the GraphQL endpoint URL in the **Target** field. You can also right-click any GraphQL request in Burp's Proxy history or Repeater and select **Send to InQL Fingerprinter** — this pre-fills the URL and copies the request headers, including any authentication tokens.
+  </Step>
+  <Step title="Click Start fingerprinting">
+    Click **Start fingerprinting**. The results panel on the right shows "Fingerprinting..." while probes are in flight.
+  </Step>
+  <Step title="Review results">
+    When a match is found, InQL fetches the corresponding Threat Matrix entry and renders it as formatted HTML in the results panel. The output includes the engine name, links to the project, and a breakdown of security features.
+  </Step>
+</Steps>
+
+## Reading the results
+
+When InQL identifies an engine, it fetches the matching Markdown file from the GraphQL Threat Matrix repository and renders it inline. The report typically covers:
+
+- **Security features** — whether the engine enforces query depth limits, field suggestions, introspection controls, persisted queries, and more
+- **Default configurations** — what the engine exposes out of the box versus what requires explicit configuration
+- **Known weaknesses** — behaviors that have historically led to vulnerabilities in deployments using this engine
+
+If the engine cannot be identified, InQL reports "Couldn't fingerprint server engine" and explains that the server may not be a standard GraphQL endpoint, or may be running an engine not yet in InQL's signature database.
+
+<Info>
+Fingerprinting results link directly to the live GraphQL Threat Matrix on GitHub. If InQL cannot reach the internet to fetch Threat Matrix data, it falls back to displaying the engine name, URL, and technology stack with a note that external data could not be retrieved.
+</Info>
+
+## Why engine fingerprinting matters for security testing
+
+<CardGroup cols={2}>
+  <Card title="Target known CVEs" icon="shield-alert">
+    Once you know the engine version and library, you can check for published CVEs and known exploitation techniques specific to that implementation.
+  </Card>
+  <Card title="Understand default behavior" icon="settings">
+    Each engine has different defaults for introspection, batching, and error verbosity. Knowing the engine tells you what the server likely exposes without any hardening.
+  </Card>
+  <Card title="Tune further attacks" icon="crosshair">
+    Engine-specific behaviors affect how batch queries, deeply nested queries, and type confusion attacks behave. Fingerprinting helps you choose the right techniques.
+  </Card>
+  <Card title="Prioritize hardening recommendations" icon="check-circle">
+    When writing a report, knowing the engine lets you cite engine-specific remediation guidance rather than generic GraphQL recommendations.
+  </Card>
+</CardGroup>

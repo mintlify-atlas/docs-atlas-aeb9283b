@@ -1,0 +1,116 @@
+---
+title: "InQL architecture — extension structure and packages"
+description: "An overview of InQL's high-level architecture: how it loads into Burp, how its packages are organized, and how the main components interact at runtime."
+---
+
+InQL is a Kotlin extension loaded into Burp Suite as a standard Java extension (JAR). It integrates with Burp through the Montoya API, registering UI tabs, context menu items, HTTP request editors, and scanner checks. All extension logic lives in the compiled `InQL.jar`, which also embeds the static assets for the GraphiQL and Voyager web applications.
+
+## Loading into Burp
+
+When Burp loads `InQL.jar`, it instantiates `BurpExtender` in the `burp` package. This class serves as the extension entry point and implements both the legacy `IBurpExtender` interface and the modern `BurpExtension` (Montoya) interface:
+
+1. `registerExtenderCallbacks` is called first (legacy API). It verifies that the running Burp version supports the Montoya API (2023.1.2 or later).
+2. `initialize` is called second (Montoya API). It stores a reference to the `MontoyaApi` instance in the `Burp` singleton, sets the extension name, and constructs the top-level `InQL` object.
+3. `extensionUnloaded` is called when the extension is removed, triggering cleanup of background tasks.
+
+<Note>
+  The `Burp` singleton (`burp.Burp`) provides global access to the `MontoyaApi` instance throughout the codebase, avoiding the need to pass it through every constructor.
+</Note>
+
+## Top-level structure
+
+The `InQL` class (`inql/InQL.kt`) is the root of the extension's object graph. During initialization it:
+
+- Instantiates the three main feature components: `Scanner`, `Attacker`, and `Fingerprinter`
+- Registers those components as the three primary tabs in the Burp UI
+- Registers the `StyledPayloadEditor` as a custom HTTP request editor provider
+- Registers a `SendToInqlHandler` for the Burp context menu
+- Registers a `BurpScannerCheck` for passive scanning
+- Initializes `ExternalToolsService` (GraphiQL / Voyager web server)
+- Loads or initializes persisted state from the Burp project file
+
+The three tabs visible in Burp's InQL panel map directly to these components:
+
+| Tab label | Class | Package |
+|---|---|---|
+| Scanner | `Scanner` | `inql.scanner` |
+| Batch Queries | `Attacker` | `inql.attacker` |
+| Engine Fingerprinting | `Fingerprinter` | `inql.fingerprinter` |
+
+## Package overview
+
+<AccordionGroup>
+  <Accordion title="inql.scanner">
+    Contains the Scanner tab and all introspection-related logic. Key classes:
+
+    - `Scanner` — the tab container; manages multiple `ScannerTab` instances and an `IntrospectionCache`
+    - `ScannerTab` — a single scan session with its own URL, headers, and results
+    - `IntrospectionCache` — stores parsed schemas keyed by host to avoid redundant requests
+    - `ScanResult` — holds the parsed schema and generated queries for a completed scan
+  </Accordion>
+  <Accordion title="inql.attacker">
+    Implements the Batch Queries feature for sending multiple GraphQL operations in a single or batched request. Key classes:
+
+    - `Attacker` — the top-level tab component
+    - `Attack` — represents a single batch attack configuration
+    - `HistoryLog` — records attack history within a session
+  </Accordion>
+  <Accordion title="inql.fingerprinter">
+    Implements the Engine Fingerprinting tab, which probes a GraphQL endpoint to identify the backend implementation. Key classes:
+
+    - `Fingerprinter` — the tab component and scan logic
+    - `Helpers` — utility functions supporting fingerprint detection
+  </Accordion>
+  <Accordion title="inql.bruteforcer">
+    Implements the Schema Bruteforcer, which attempts to reconstruct a GraphQL schema when introspection is disabled. Key classes:
+
+    - `Bruteforcer` — orchestrates the bruteforce scan
+    - `RegexStore` — stores and manages regex patterns used to detect field/type names
+    - `ThrottledClient` — rate-limits outbound HTTP requests during the scan
+  </Accordion>
+  <Accordion title="inql.graphql">
+    Core GraphQL processing logic shared across features. Key classes:
+
+    - `GQLSchema` — wraps a parsed GraphQL schema
+    - `Introspection` — sends and parses introspection queries
+    - `GQLQueryPrinter` — generates human-readable query strings from schema types
+    - `POIScanner` — identifies Points of Interest (potential vulnerabilities) in a schema
+    - `CyclesScanner` — detects circular references in a schema
+  </Accordion>
+  <Accordion title="inql.externaltools">
+    Manages the embedded web server that serves GraphiQL and Voyager. Key classes:
+
+    - `ExternalToolsService` — singleton that starts and stops the Ktor/Netty web server on demand
+    - `WebServer` — configures the Ktor application and routes for the embedded web apps
+  </Accordion>
+  <Accordion title="inql.ui">
+    Shared UI components used across multiple features. Key classes:
+
+    - `StyledPayloadEditor` — custom Burp HTTP request editor tab that renders GraphQL payloads with syntax highlighting
+    - `SettingsWindow` — the InQL settings panel
+    - `ContextMenu` / `SendToInqlHandler` — adds InQL actions to Burp's right-click context menu
+  </Accordion>
+  <Accordion title="inql.savestate">
+    Handles persistence of extension state across Burp sessions using the Montoya project file API. Provides the `SavesDataToProject` and `SavesAndLoadData` interfaces implemented by `Scanner`, `Attacker`, and `InQL` itself.
+  </Accordion>
+  <Accordion title="burp">
+    The Burp-facing entry point package. Contains `BurpExtender` (the extension entry point) and the `Burp` singleton that holds the `MontoyaApi` reference.
+  </Accordion>
+</AccordionGroup>
+
+## Web applications
+
+GraphiQL and Voyager are standalone React applications located under `lib/graphiql` and `lib/voyager` respectively. They are built separately using yarn (via `task web`) and their compiled output is copied into `resources/static/` before the Kotlin build runs.
+
+At runtime, `ExternalToolsService` starts an embedded Ktor/Netty HTTP server that serves these static assets. The server starts lazily the first time a user opens GraphiQL or Voyager, unless the `integrations.webserver.lazy` config option is set to `false`.
+
+## Configuration scopes
+
+InQL uses two configuration scopes:
+
+| Scope | Storage | Purpose |
+|---|---|---|
+| **Global** | Burp preferences | User-level settings that persist across all projects (e.g., logging level, proxy highlight toggle) |
+| **Project** | Burp project file | Session-specific data such as scanner tabs, scan results, and attacker configurations |
+
+The `savestate` package manages serialization and deserialization of project-scoped data using the Montoya `PersistedObject` API.

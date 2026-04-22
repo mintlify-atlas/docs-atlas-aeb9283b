@@ -1,80 +1,81 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: "Quickstart: Scan a GraphQL endpoint with InQL in Burp"
+description: "Scan your first GraphQL endpoint with InQL in minutes. Run introspection, browse auto-generated queries, and send them to Burp Repeater and Intruder."
+keywords: ["InQL", "quickstart", "GraphQL", "scanner", "introspection", "Burp Repeater", "query generation"]
 ---
 
-## Get started in three steps
+Once InQL is installed, you can scan a GraphQL endpoint and start exploring its schema in a few steps. This guide walks you through opening the Scanner, running your first introspection scan, and sending generated queries to other Burp tools. You should be up and running in under five minutes.
 
-Get your documentation site running locally and make your first customization.
+## What introspection does
 
-### Step 1: Set up your local environment
+GraphQL servers expose a built-in mechanism called **introspection** that lets clients query the API's own schema — every type, field, query, mutation, and subscription the server supports. InQL sends an introspection query to your target endpoint and uses the response to automatically generate every possible operation, organized for you to browse, test, and send to Burp tools.
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+If the target has introspection disabled, see the [Schema Bruteforcer](/features/schema-bruteforcer) feature, which can recover schema details without it.
 
-### Step 2: Deploy your changes
+## Scan your first endpoint
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+<Steps>
+  <Step title="Open the InQL tab">
+    In Burp Suite, click the **InQL** tab in the main toolbar. You'll see three sub-tabs: **Scanner**, **Batch Queries**, and **Engine Fingerprinting**. Click **Scanner**.
+  </Step>
+  <Step title="Enter the endpoint URL">
+    In the Scanner's URL field, type or paste the full URL of the GraphQL endpoint you want to test. For example:
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+    ```text
+    https://example.com/graphql
+    ```
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+    If the endpoint requires authentication, set your headers before scanning. InQL lets you configure per-domain custom headers — look for the headers section in the Scanner tab.
+  </Step>
+  <Step title="Run the scan">
+    Click **Analyze**. InQL sends an introspection query to the endpoint and processes the response. Depending on schema size, this usually takes a few seconds.
 
-### Step 3: Go live
+    When the scan completes, the left panel populates with a tree of all queries, mutations, and subscriptions InQL discovered.
+  </Step>
+  <Step title="Browse the generated queries">
+    Click any item in the tree to view the auto-generated query in the right panel. InQL generates valid GraphQL with proper nesting based on the schema, up to the configured depth (default: 2 levels).
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+    The output panel shows the query formatted and ready to use.
+  </Step>
+  <Step title="Run a Points of Interest scan">
+    Click **Scan for Points of Interest** to analyze the schema for fields that may be security-relevant. InQL categorizes findings across several categories:
 
-## Next steps
+    - **Auth** — authentication and authorization fields
+    - **PII** — fields likely to contain personal data
+    - **Payment** — payment and billing operations
+    - **Files** — file upload or download operations
+    - **Debugging** — fields that may expose internal state
+    - **Deprecated** — operations marked as deprecated
 
-Now that you have your docs running, explore these key features:
+    Results appear as a separate view. You can enable or disable categories to focus on what matters for your engagement.
+  </Step>
+  <Step title="Check for circular references">
+    After scanning, InQL automatically identifies circular reference patterns in the schema — recursive types that could be exploited to craft deeply nested queries for denial-of-service attacks. Any detected circular references appear flagged in the scanner results.
+  </Step>
+  <Step title="Send queries to Burp tools">
+    Right-click any generated query in the Scanner and choose **Send to Repeater** or **Send to Intruder** to pass it directly into those tools. The request is pre-filled with the correct content type and the generated query body, ready for you to modify and test.
+  </Step>
+</Steps>
+
+## Using InQL in the message editor
+
+InQL registers a **GraphQL (InQL)** tab on every HTTP message editor in Burp — Proxy, Repeater, Intruder, and others. When you intercept or open a GraphQL request, click the **GraphQL (InQL)** tab to see the request body formatted with syntax highlighting.
+
+You can edit queries directly in this view and send the modified request back to any Burp tool.
+
+## What to explore next
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Scanner" icon="magnifying-glass" href="/features/scanner">
+    Learn how to configure scan depth, indentation, and POI categories for more targeted analysis.
+  </Card>
+  <Card title="Batch Queries" icon="bolt" href="/features/batch-queries">
+    Test rate limit bypass scenarios by bundling multiple operations into a single batched request.
+  </Card>
+  <Card title="Engine Fingerprinting" icon="fingerprint" href="/features/engine-fingerprinting">
+    Identify the GraphQL server implementation to focus your testing on known vulnerabilities.
+  </Card>
+  <Card title="Schema Bruteforcer" icon="shield-halved" href="/features/schema-bruteforcer">
+    Recover schema details from targets where introspection has been disabled.
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

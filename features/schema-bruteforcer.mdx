@@ -1,0 +1,107 @@
+---
+title: "Schema bruteforcer: recover schemas without introspection"
+description: "Partially reconstruct a GraphQL schema using InQL's Schema Bruteforcer, which probes field names against server error messages when introspection is disabled."
+---
+
+Many production GraphQL deployments disable introspection as a security measure. Without introspection, the Scanner cannot generate queries — but that does not mean the schema is entirely hidden. InQL's Schema Bruteforcer takes a different approach: it sends queries that contain candidate field names, reads the error responses, and infers which names are valid from the server's feedback. This technique, based on the [Clairvoyance](https://github.com/nikitastupin/clairvoyance) approach, uses regex pattern matching against common GraphQL error formats to reconstruct a partial schema without ever receiving a successful introspection response.
+
+<Note>
+The Schema Bruteforcer produces a partial schema — it discovers fields and types that appear in the wordlist and that the server's error messages confirm or suggest. Fields not covered by the wordlist will not appear in the output.
+</Note>
+
+## When to use the bruteforcer
+
+Use the Schema Bruteforcer when:
+
+- Sending an introspection query returns an error like `"Introspection has been disabled"` or a `400`/`403` response
+- The Scanner tab reports "Introspection seems disabled for this endpoint"
+- You want to verify whether a production endpoint leaks field names through error messages even with introspection off
+
+<Warning>
+Schema bruteforcing generates a large number of HTTP requests. Only run it against systems you have authorization to test, and be aware of any rate limiting or WAF rules that may trigger on the target.
+</Warning>
+
+## How it works
+
+<Steps>
+  <Step title="Discover root type names">
+    InQL sends a query with a deliberately wrong field (`_inql_wrongfield`) against the query, mutation, and subscription roots. Error messages from most GraphQL engines include the type name that rejected the field (e.g., `Cannot query field "_inql_wrongfield" on type "Query"`). InQL extracts those type names using regex patterns.
+  </Step>
+  <Step title="Probe fields in batches">
+    InQL sends batches of candidate field names from the wordlist in a single query. Fields that appear in error messages as "unknown" are eliminated; fields not mentioned in errors — or mentioned in suggestions — are considered valid. The `bruteforcer.bucket_size` setting controls how many candidates are tested per request.
+  </Step>
+  <Step title="Determine field types">
+    For each discovered field, InQL probes its return type by sending a sub-selection query and reading the resulting error. It tries scalar values (`String`, `Int`, `Boolean`, `Float`) and input objects systematically until the error response reveals the expected type name.
+  </Step>
+  <Step title="Probe arguments">
+    If `bruteforcer.bruteforce_arguments` is enabled, InQL also probes each discovered field for valid argument names, again using the argument wordlist and error-message analysis.
+  </Step>
+  <Step title="Reconstruct the schema">
+    Discovered types, fields, and arguments are assembled into a `GraphQLSchema` object and exported as SDL (Schema Definition Language). If no fields are found for a type but the server response indicates it is an abstract type, InQL probes for union or interface implementations using inline fragments.
+  </Step>
+</Steps>
+
+## Configuration
+
+All bruteforcer settings are accessible from InQL's extension settings panel. The defaults are chosen to balance discovery speed with server load.
+
+| Setting | Config key | Default | Description |
+|---|---|---|---|
+| Bucket size | `bruteforcer.bucket_size` | `64` | Number of candidate field names sent in each batch request |
+| Depth limit | `bruteforcer.depth_limit` | `2` | Maximum nesting depth to probe. Types found deeper than this are skipped |
+| Concurrency | `bruteforcer.concurrency_limit` | `8` | Maximum number of in-flight HTTP requests at any time |
+| Bruteforce arguments | `bruteforcer.bruteforce_arguments` | `true` | Whether to probe field arguments using the argument wordlist |
+| Custom field wordlist | `bruteforcer.custom_wordlist` | _(built-in)_ | Absolute path to a custom wordlist file for field names |
+| Custom argument wordlist | `bruteforcer.custom_arg_wordlist` | _(built-in)_ | Absolute path to a custom wordlist file for argument names |
+
+<Tip>
+Increase `bruteforcer.bucket_size` for faster discovery against servers with high throughput. Decrease it if the server returns `400` errors for excessively long query strings or if a WAF is triggering on large payloads.
+</Tip>
+
+## Running the bruteforcer
+
+<Steps>
+  <Step title="Open the Scanner tab">
+    The bruteforcer runs from within a Scanner tab. In Burp Suite, open the **InQL** tab and click **Scanner**.
+  </Step>
+  <Step title="Enter the target URL">
+    Type the GraphQL endpoint URL into the **Target** field, or load the request from Burp's proxy history.
+  </Step>
+  <Step title="Set headers">
+    Add any authentication headers required by the target. The bruteforcer needs to reach endpoints that return meaningful error messages — requests that return a generic `401` or `403` without a GraphQL error body will not yield useful results.
+  </Step>
+  <Step title="Click Bruteforce">
+    Click the **Bruteforce** button (separate from the **Scan** button). A confirmation dialog displays the current settings. Review them, then click **Start** to begin.
+  </Step>
+  <Step title="Wait for completion">
+    The bruteforcer runs asynchronously. A progress indicator appears in the tab while it is active. You can cancel at any time by clicking **Cancel**. Completed results appear in the results view when the run finishes.
+  </Step>
+</Steps>
+
+## Understanding the output
+
+The bruteforcer produces SDL output compatible with the InQL Scanner results view. Once a run completes:
+
+- Discovered fields appear organized by operation type (queries, mutations, subscriptions)
+- Type names are inferred from server error messages and may not be complete
+- Fields whose return type could not be determined default to `String`
+- Input object types are discovered if arguments are probed and the server's error messages reveal the input type name
+
+You can send any discovered operation to Burp's Repeater or Intruder directly from the results view, just as you would with results from a standard introspection scan.
+
+## Limitations
+
+<AccordionGroup>
+  <Accordion title="Wordlist coverage">
+    The bruteforcer can only discover field and argument names that appear in the wordlist. InQL ships a general-purpose wordlist drawn from common GraphQL naming patterns, but domain-specific or obfuscated field names will be missed. Provide a custom wordlist using `bruteforcer.custom_wordlist` when you have hints about the target's naming conventions.
+  </Accordion>
+  <Accordion title="Error message dependency">
+    The technique depends entirely on the server returning descriptive GraphQL error messages. Servers that return generic errors like `"Bad request"` without mentioning field names or types produce no useful signal. Some WAF configurations and GraphQL security middleware strip or generalize error messages specifically to prevent this kind of inference.
+  </Accordion>
+  <Accordion title="Depth limit tradeoffs">
+    Increasing `bruteforcer.depth_limit` discovers more of the schema but increases the total number of requests significantly. The depth limit applies to the path from a root operation type to the type being scanned — a limit of 2 means InQL probes the root type and one level of nested object types.
+  </Accordion>
+  <Accordion title="Incomplete type information">
+    Type nullability (`!`), list wrapping (`[]`), and custom scalar definitions may not be fully recoverable. The output SDL is a best-effort reconstruction suitable for identifying attack surface, not a production-accurate schema.
+  </Accordion>
+</AccordionGroup>

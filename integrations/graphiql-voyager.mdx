@@ -1,0 +1,75 @@
+---
+title: "Use GraphiQL and Voyager to explore GraphQL schemas"
+description: "Open GraphiQL's interactive query IDE or GraphQL Voyager's visual schema explorer from InQL using Burp's built-in browser or an external browser."
+---
+
+InQL bundles support for two widely used GraphQL developer tools — **GraphiQL** and **GraphQL Voyager** — and makes them accessible without leaving Burp Suite. GraphiQL is an interactive, in-browser IDE for writing and executing GraphQL queries against a live endpoint. GraphQL Voyager renders an interactive visual graph of a schema, showing every type and its relationships, which makes it useful for understanding the full attack surface at a glance.
+
+## How the embedded web server works
+
+InQL runs a lightweight HTTP server built on **Ktor/Netty** (`WebServer`) that serves the static assets for both tools. The server binds to `127.0.0.1` on a randomly selected port in the ephemeral range (49152–65535) and is managed by `ExternalToolsService`.
+
+Because Burp's proxy request handler intercepts traffic before DNS resolution, InQL routes browser requests to the virtual hostname `https://inql.burp` through the proxy and redirects them to the local server. This approach lets the tools load over what appears to be a named host while running entirely on localhost.
+
+<Note>
+The server only ever binds to `127.0.0.1`. Traffic to `https://inql.burp` never leaves the machine — it is intercepted by InQL's proxy handler and forwarded to the local Ktor server.
+</Note>
+
+### Lazy vs. eager start
+
+By default the web server starts **lazily** — it only launches the first time you open GraphiQL or Voyager, not when InQL loads. If you need the server to be ready before the first use (for example in an automated workflow), set `integrations.webserver.lazy` to `false` in InQL settings. When that key is `false`, InQL calls `ExternalToolsService.startIfOff()` during the extension initialization sequence.
+
+| Config key | Default | Description |
+|---|---|---|
+| `integrations.webserver.lazy` | `true` | Start the web server on first use (`true`) or at extension load time (`false`) |
+| `integrations.graphiql` | `true` | Enable the GraphiQL integration |
+| `integrations.voyager` | `true` | Enable the GraphQL Voyager integration |
+
+## Opening GraphiQL or Voyager
+
+After you run a scan in InQL, you can send the schema to either tool from the Scanner results view.
+
+<Steps>
+  <Step title="Run a scan">
+    In the **Scanner** tab, scan a GraphQL endpoint or load a local schema file. Wait for InQL to finish generating queries and parsing the schema.
+  </Step>
+  <Step title="Open the tool from the context menu or toolbar">
+    Right-click any generated query or use the toolbar button in the Scanner results view and select **Open in GraphiQL** or **Open in Voyager**. InQL encodes the current request (query, variables, and target URL) and constructs a URL pointing to `https://inql.burp/graphiql` or `https://inql.burp/voyager`.
+  </Step>
+  <Step title="Interact with the tool">
+    The selected browser opens with the tool pre-loaded. In GraphiQL you can edit and execute queries directly against the target. In Voyager you can explore the full type graph and navigate relationships visually.
+  </Step>
+  <Step title="Send queries back to Burp (GraphiQL only)">
+    GraphiQL includes **Send to Repeater** and **Send to Intruder** buttons. Clicking either one sends a `POST` request to `/send-to-repeater` or `/send-to-intruder` on the embedded server, which deserializes the request and forwards it to the corresponding Burp tool.
+  </Step>
+</Steps>
+
+## Request encoding
+
+When you open a request in GraphiQL, InQL serializes the query and variables from the request body into a JSON object, compresses it with GZIP, and Base64url-encodes the result. This encoded blob is passed as a URL fragment (`#data:<encoded>`). GraphiQL reads the fragment on load and populates the editor with the decoded query and variables automatically.
+
+## Browser options
+
+InQL supports two browser modes for opening GraphiQL and Voyager. You can switch between them in InQL settings.
+
+<CardGroup cols={2}>
+  <Card title="Internal browser (default)" icon="window-maximize">
+    Uses Burp Suite's built-in Chromium browser. Requests made from this browser automatically pass through the Burp proxy, so InQL's proxy intercept handler can route them correctly to the embedded web server. No additional setup is required.
+  </Card>
+  <Card title="External browser" icon="arrow-up-right-from-square">
+    Opens the URL in a browser you specify. You must configure the external browser to route traffic through Burp's proxy so that requests to `https://inql.burp` are intercepted and forwarded correctly. If the browser bypasses the proxy, the tools will not load.
+  </Card>
+</CardGroup>
+
+| Config key | Default | Description |
+|---|---|---|
+| `integrations.browser.internal` | `true` | Use Burp's built-in browser (`true`) or an external browser (`false`) |
+| `integrations.browser.external.command` | `""` | Command used to launch the external browser (for example `firefox` or `/usr/bin/google-chrome`) |
+
+<Warning>
+When using an external browser, you must configure it to proxy traffic through Burp on `127.0.0.1:8080` (or your configured Burp listener). Without this, requests to `https://inql.burp` will fail to resolve and the tools will not load.
+</Warning>
+
+<Tip>
+If you prefer a specific browser for GraphQL exploration, set `integrations.browser.internal` to `false` and provide the browser executable path or command in `integrations.browser.external.command`. For example, set the command to `firefox` to use Firefox, or `google-chrome` to use Chrome.
+</Tip>

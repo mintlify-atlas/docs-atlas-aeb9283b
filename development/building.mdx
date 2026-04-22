@@ -1,0 +1,135 @@
+---
+title: "Building InQL from source — a step-by-step guide"
+description: "Set up your environment, install Java 17 and Taskfile, then build InQL.jar from source for development or local testing with Burp Suite."
+---
+
+InQL is a Kotlin-based Burp Suite extension that also bundles two web applications (GraphiQL and Voyager) built with JavaScript. The build process handles both parts automatically: Taskfile orchestrates the yarn-based web app builds first, then compiles and packages the Kotlin extension into a single `InQL.jar` file ready for Burp.
+
+## Requirements
+
+- **Java 17 or later** — required by the Montoya API
+- **Taskfile (go-task)** — the build orchestrator used by this project
+
+## Install dependencies
+
+### Java 17
+
+<CodeGroup>
+
+```bash Debian / Ubuntu
+sudo apt install -y openjdk-17-jdk
+java --version
+```
+
+```bash macOS (Homebrew)
+brew install openjdk@17
+java --version
+```
+
+</CodeGroup>
+
+### Taskfile
+
+<CodeGroup>
+
+```bash Debian / Ubuntu
+sudo apt install -y task
+```
+
+```bash macOS (Homebrew)
+brew install go-task
+```
+
+</CodeGroup>
+
+## Clone the repository
+
+```bash
+git clone https://github.com/doyensec/inql
+cd inql
+```
+
+If you plan to contribute, also check out the `dev` branch:
+
+```bash
+git checkout dev
+```
+
+<Note>
+  The `dev` branch may be unstable. Use `main` for the latest release build.
+</Note>
+
+## Build
+
+### Full build
+
+Run the following command to build everything — web apps and the Kotlin extension:
+
+```bash
+task all
+```
+
+This runs in two stages:
+
+1. **Web apps** — installs yarn dependencies and builds GraphiQL and Voyager under `lib/`, then copies the output into `resources/static/`.
+2. **Kotlin extension** — compiles the Kotlin source with Gradle and packages everything (including the static web resources) into `InQL.jar` at the project root.
+
+### Available tasks
+
+<AccordionGroup>
+  <Accordion title="task all">
+    Runs the full build pipeline: web apps followed by the Kotlin extension. Produces `InQL.jar`. This is the command to use for a clean build.
+  </Accordion>
+  <Accordion title="task web">
+    Builds only the GraphiQL and Voyager web applications and copies their output into `resources/static/`. Useful when iterating on the embedded web UIs.
+  </Accordion>
+  <Accordion title="task kotlin">
+    Compiles the Kotlin source and packages `InQL.jar` using Gradle. Skips the web app build. Run this after web assets are already built.
+  </Accordion>
+  <Accordion title="task kotlin -w">
+    Runs the Kotlin build in watch mode. The extension is automatically rebuilt whenever a Kotlin source file, resource, or `build.gradle` changes. Recommended during active development.
+  </Accordion>
+</AccordionGroup>
+
+## Development workflow
+
+For day-to-day development on the Kotlin side, use watch mode to avoid manually triggering rebuilds:
+
+```bash
+task kotlin -w
+```
+
+Burp will pick up the updated `InQL.jar` after you reload the extension in the Extensions tab.
+
+<Tip>
+  The watch mode has a 500 ms polling interval. Changes are detected quickly, but allow a moment for the Gradle build to complete before reloading in Burp.
+</Tip>
+
+## Load into Burp Suite
+
+Once `InQL.jar` is built, load it as a Java extension:
+
+<Steps>
+  <Step title="Open the Extensions tab">
+    In Burp Suite, navigate to **Extensions** → **Installed** and click **Add**.
+  </Step>
+  <Step title="Select the JAR">
+    Set the extension type to **Java**, then browse to `InQL.jar` in the project root.
+  </Step>
+  <Step title="Verify the load">
+    The **InQL** tab should appear in the Burp Suite toolbar. Check the **Output** and **Errors** sub-tabs for any load-time messages.
+  </Step>
+</Steps>
+
+## Key dependencies
+
+The following libraries are declared in `build.gradle` and bundled into `InQL.jar`:
+
+| Library | Version | Purpose |
+|---|---|---|
+| `graphql-java` | 21.5 | GraphQL schema parsing and query execution |
+| `montoya-api` | 2023.5 | Burp Suite extension API (compile-only) |
+| `ktor-server-core` / `ktor-server-netty` | 3.1.1 | Embedded web server for GraphiQL and Voyager |
+| `kotlinx-coroutines-core` | 1.8.0 | Asynchronous operations |
+| `gson` | 2.10.1 | JSON serialization |
+| `flatlaf` | 3.7 | Swing look-and-feel |

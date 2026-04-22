@@ -1,0 +1,118 @@
+---
+title: "Batch queries: send hundreds of GraphQL ops in one request"
+description: "Bundle repeated GraphQL operations into one HTTP request with InQL's Batch Queries tab to bypass naive rate limits for 2FA brute-forcing, DoS, and enumeration."
+---
+
+GraphQL allows multiple operations to be sent in a single HTTP request as a JSON array — a technique called batching. Many rate-limiting implementations count HTTP requests rather than individual GraphQL operations, so batching lets you send hundreds of operations while appearing to make only one request. InQL's Batch Queries tab gives you a purpose-built interface for crafting and executing these attacks.
+
+<Warning>
+Only use the Batch Queries feature against systems you have explicit authorization to test. Sending batched requests at high volume can cause service disruption.
+</Warning>
+
+## What batch queries look like on the wire
+
+A standard batched GraphQL request is a JSON array where each element is a separate operation:
+
+```json
+[
+  {"query": "mutation { login(username: \"user1\", password: \"pass1\") { token } }"},
+  {"query": "mutation { login(username: \"user2\", password: \"pass2\") { token } }"},
+  {"query": "mutation { login(username: \"user3\", password: \"pass3\") { token } }"}
+]
+```
+
+Some servers also support inline batching, where multiple operations are aliased within a single query body:
+
+```graphql
+{
+  "query": "query {
+    op0: verifyCode(code: \"000\") { status }
+    op1: verifyCode(code: \"001\") { status }
+    op2: verifyCode(code: \"002\") { status }
+  }"
+}
+```
+
+InQL's Batch Queries tab uses the inline aliasing approach, which is broadly compatible and works even when array-format batching is disabled by the server.
+
+## How InQL generates batched requests
+
+When you click **Send**, InQL reads the query from the request editor and scans it for a **placeholder** that defines the range or wordlist to iterate over. It expands the placeholder into aliased operations (`op0`, `op1`, `op2`, ...) within a single query body, builds a new HTTP request with the resulting payload, sends it, and records the response in the history log.
+
+### Supported placeholders
+
+<AccordionGroup>
+  <Accordion title="$[INT:first:last] — integer range">
+    Iterates over a range of integers, similar to Python's `range(first, last)`. Use the variable `$INT` in the query body where you want the current number substituted.
+
+    ```graphql
+    {
+      "query": "query { $[INT:0:100] verifyCode(code: \"$INT\") { status } }"
+    }
+    ```
+
+    This generates 100 aliased operations, each with a different `code` value from 0 to 99.
+  </Accordion>
+  <Accordion title="$[FILE:path:first:last] — wordlist file">
+    Reads lines from a file on disk. Use the variable `$FILE` where each line should be substituted. The optional `first` and `last` parameters select a line range (1-indexed).
+
+    ```graphql
+    {
+      "query": "query { $[FILE:/home/user/passwords.txt:1:500] login(password: \"$FILE\") { token } }"
+    }
+    ```
+
+    Line numbers start at 1, not 0. Omit the range to iterate over the entire file.
+  </Accordion>
+</AccordionGroup>
+
+<Note>
+Each query may contain only one placeholder at a time. Variables (as defined by the GraphQL `variables` key) are not currently supported in batched queries — substitute values directly in the query string.
+</Note>
+
+## Running a batch attack
+
+<Steps>
+  <Step title="Open the Batch Queries tab">
+    In Burp Suite, click the **InQL** extension tab, then select **Batch Queries** from the top navigation.
+  </Step>
+  <Step title="Set the target URL">
+    Enter the GraphQL endpoint in the **Target** field. You can also right-click any GraphQL request in Burp's Proxy history or Repeater and choose **Send to InQL Batch Queries** — this pre-fills both the URL and the request template.
+  </Step>
+  <Step title="Paste or load your query">
+    In the request editor, paste the GraphQL JSON body containing a placeholder. The request editor is a full Burp HTTP request editor, so you can modify headers, body encoding, and any other parameter.
+  </Step>
+  <Step title="Click Send">
+    Click **Send**. InQL expands the placeholder, builds the batched request, and sends it. The operation is added to the history log immediately, and the response populates once the server replies.
+  </Step>
+</Steps>
+
+## Reading the history log
+
+Every executed attack appears in the history log on the right side of the tab. Each row shows:
+
+- **Date** — when the attack was sent
+- **Host** — the target hostname
+- **Path** — the request path (e.g. `/graphql`)
+- **Status** — HTTP response status code
+- **Length** — response body length in bytes
+- **From / To** — the start and end values of the iterated range (integer bounds or line numbers)
+
+Click any row to view the full HTTP request and response in the viewer below the log. History persists in the Burp project file, so previous attacks are still visible when you reopen a project.
+
+## Common use cases
+
+<CardGroup cols={2}>
+  <Card title="2FA code brute-forcing" icon="lock">
+    Send all possible 6-digit TOTP codes in a single request using `$[INT:000000:999999]` to bypass weak rate limiting on verification endpoints.
+  </Card>
+  <Card title="Password spraying" icon="key">
+    Supply a wordlist with `$[FILE:/path/to/passwords.txt]` and test a credential against many users or many passwords against one user.
+  </Card>
+  <Card title="DoS / resource exhaustion" icon="bolt">
+    Repeat an expensive query hundreds of times in a single request to test whether the server enforces query cost limits.
+  </Card>
+  <Card title="Enumeration" icon="list">
+    Iterate over sequential IDs, coupon codes, or other predictable values to enumerate resources that lack proper authorization checks.
+  </Card>
+</CardGroup>

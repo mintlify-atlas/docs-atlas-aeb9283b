@@ -1,0 +1,66 @@
+---
+title: "InQL v6.1.2: GraphQL Security Testing for Burp Suite"
+description: "InQL is an open-source Burp Suite extension for GraphQL security testing. Automate schema analysis, query generation, and vulnerability detection in one tool."
+keywords: ["InQL", "GraphQL", "Burp Suite", "security testing", "penetration testing", "introspection", "schema analysis"]
+---
+
+InQL is an open-source Burp Suite extension built for security professionals who test GraphQL APIs. It automates the reconnaissance work — introspecting endpoints, generating every possible query and mutation, detecting vulnerable patterns — so you can spend your time on actual findings rather than manual schema exploration. InQL v6.1.2 works with both Burp Suite Professional and Community editions and requires Java 17 or later.
+
+## Who InQL is for
+
+InQL is designed for penetration testers and bug bounty hunters who regularly encounter GraphQL APIs. If you've ever manually built GraphQL introspection queries, copied schema fields into requests one by one, or tried to figure out what operations an API exposes without documentation, InQL automates all of that inside Burp.
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="Scanner" icon="magnifying-glass" href="/features/scanner">
+    Introspect any GraphQL endpoint or load a local schema file. InQL auto-generates all queries, mutations, and subscriptions and organizes them for analysis.
+  </Card>
+  <Card title="Batch Queries" icon="bolt" href="/features/batch-queries">
+    Run batch GraphQL attacks to test for rate limit bypass vulnerabilities in APIs with poorly implemented throttling.
+  </Card>
+  <Card title="Engine Fingerprinting" icon="fingerprint" href="/features/engine-fingerprinting">
+    Identify the GraphQL server technology behind an endpoint by scanning for implementation-specific behaviors and responses.
+  </Card>
+  <Card title="Schema Bruteforcer" icon="shield-halved" href="/features/schema-bruteforcer">
+    Reconstruct a GraphQL schema using regex pattern matching when introspection is disabled, based on the Clairvoyance tool.
+  </Card>
+</CardGroup>
+
+## Scanner capabilities
+
+The **Scanner** tab is the core of InQL. Beyond basic introspection and query generation, it provides:
+
+- **Points of Interest scanning** — surface fields related to authentication, PII, payments, file operations, debugging endpoints, and deprecated types
+- **Circular reference detection** — identify recursive query structures that could be exploited for denial-of-service attacks
+- **Custom headers** — set per-domain request headers, with the domain list auto-populated from Burp proxy traffic
+- **Configurable depth and indentation** — control how deeply InQL generates nested queries and how output is formatted
+
+## Burp integration
+
+InQL registers a **GraphQL (InQL)** tab on Burp's native HTTP message editors, giving you syntax highlighting and formatting for any GraphQL request in Proxy, Repeater, or other Burp tools. You can send any auto-generated query directly to Repeater, Intruder, or other Burp tools via the context menu.
+
+InQL also embeds **GraphiQL** and **GraphQL Voyager** servers, which you can use to explore an analyzed schema interactively.
+
+## Compatibility
+
+| Requirement | Details |
+|---|---|
+| Burp Suite | Professional or Community, latest version |
+| Java | 17 or later (Montoya API requirement) |
+| InQL version | v6.1.2 |
+
+<Note>
+  InQL only provides support for the most recent version of Burp Suite. If you're running an older version, update Burp before installing the extension.
+</Note>
+
+## Get started
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install from the BApp Store in a few clicks, or build from source with Java 17 and Taskfile.
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Scan your first GraphQL endpoint and send queries to Burp tools in minutes.
+  </Card>
+</CardGroup>

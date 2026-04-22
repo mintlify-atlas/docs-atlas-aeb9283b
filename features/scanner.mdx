@@ -1,0 +1,156 @@
+---
+title: "InQL Scanner: auto-generate GraphQL queries from any schema"
+description: "InQL's Scanner generates GraphQL queries, mutations, and subscriptions from an endpoint or schema file, with configurable depth and Points of Interest scanning."
+---
+
+The Scanner is the core of InQL. Point it at a GraphQL endpoint or a local schema file and it automatically sends an introspection query, parses the full type system, and generates every query, mutation, and subscription the API exposes — organized and ready for you to send to Burp tools.
+
+## How the scanner works
+
+When you initiate a scan against a URL, InQL sends an introspection query to the endpoint. The response is parsed by `GQLSchema`, which accepts both JSON introspection format and SDL. InQL then walks every field definition and uses `GQLQueryPrinter` to render each operation as a complete, properly-indented query string. Results are stored in `ScanResult` objects and survive across Burp sessions — the scanner serializes tab state into Burp's project file automatically.
+
+A scan from a local file skips the network step entirely: InQL reads the file, detects whether it's JSON or SDL, and runs the same code-generation pipeline.
+
+## Scan modes
+
+<Tabs>
+  <Tab title="Live endpoint">
+    Enter a URL and InQL sends the introspection query for you. If the server disables the default introspection version, InQL retries with older query versions automatically.
+
+    ```graphql
+    # InQL sends this introspection query under the hood
+    query IntrospectionQuery {
+      __schema {
+        queryType { name }
+        mutationType { name }
+        subscriptionType { name }
+        types { ...FullType }
+        directives { name description locations args { ...InputValue } }
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Local schema file">
+    Supply a path to a `.json` introspection file or a `.graphql` SDL file. InQL parses it offline — no network request is made. This is useful when you have a schema export from a CI pipeline or a file captured during traffic analysis.
+  </Tab>
+</Tabs>
+
+## Starting a scan
+
+<Steps>
+  <Step title="Open the Scanner tab">
+    In Burp Suite, navigate to the **InQL** extension tab and click **Scanner** in the top navigation.
+  </Step>
+  <Step title="Set the target">
+    Enter the GraphQL endpoint URL in the **Target** field. To scan a local schema file instead, click the file selector and choose your `.json` or `.graphql` file.
+  </Step>
+  <Step title="Configure headers (optional)">
+    If the endpoint requires authentication, add headers in the request template editor. InQL auto-populates the domain list from Burp's proxy history so you can quickly pick headers observed for the target host.
+  </Step>
+  <Step title="Click Scan">
+    Click **Scan**. InQL sends the introspection query, parses the schema, and switches to the results view once code generation is complete.
+  </Step>
+</Steps>
+
+## Understanding scan results
+
+Results are grouped by operation type. Expand a category to see every generated operation.
+
+<CardGroup cols={2}>
+  <Card title="Queries" icon="search">
+    All read operations. Each entry shows the full generated query string with arguments and nested fields.
+  </Card>
+  <Card title="Mutations" icon="pencil">
+    All write operations, including input type arguments populated with their types and any default values.
+  </Card>
+  <Card title="Subscriptions" icon="radio">
+    Real-time operations. Generated in the same format as queries.
+  </Card>
+  <Card title="Points of Interest" icon="flag">
+    Fields flagged by keyword categories (see below). Shown as a separate results section after the POI scan completes.
+  </Card>
+</CardGroup>
+
+### Example generated query
+
+InQL produces complete, ready-to-send queries. For a schema with a `user` field on the query root, InQL generates:
+
+```graphql
+query user {
+    user(id: ID) {
+        id
+        name
+        email
+        roles {
+            id
+            name
+        }
+    }
+}
+```
+
+The indentation depth and spacing are both configurable (see [Customizing code generation](#customizing-code-generation) below).
+
+## Customizing code generation
+
+Two configuration keys control how InQL generates query text:
+
+| Setting | Config key | Default | Description |
+|---|---|---|---|
+| Depth | `codegen.depth` | `2` | How many levels of nested fields InQL expands before truncating |
+| Indentation | `codegen.pad` | `4` | Number of spaces used for each indentation level |
+
+<Info>
+Fields truncated by the depth limit appear as a commented-out line: `fieldName # { Truncated by depth limit }`. Increase `codegen.depth` in InQL settings to expand deeper nesting.
+</Info>
+
+## Points of Interest scan
+
+The POI scan walks every field in every type up to a configurable depth and checks field names against keyword categories. Categories you can enable or disable individually:
+
+<AccordionGroup>
+  <Accordion title="Built-in keyword categories">
+    - **auth** — authentication and authorization fields (`login`, `token`, `session`, `password`, etc.)
+    - **privileged** — admin and elevated-permission operations
+    - **pii** — personally identifiable information (`email`, `phone`, `address`, `ssn`, etc.)
+    - **payment** — billing and payment fields (`card`, `billing`, `stripe`, `checkout`, etc.)
+    - **database** — raw database access fields
+    - **debugging** — debug and introspection helpers that should not be exposed in production
+    - **files** — file upload and download operations
+    - **deprecated** — fields marked `@deprecated` in the schema
+    - **custom scalars** — any non-built-in scalar types
+  </Accordion>
+  <Accordion title="Custom keywords">
+    You can add your own keyword patterns under **report.poi.custom_keywords** in InQL settings. Each line is treated as a regex alternative joined with `|`.
+  </Accordion>
+</AccordionGroup>
+
+## Circular reference detection
+
+InQL runs a depth-first cycle detection pass (`CyclesScanner`) over all queries, mutations, and subscriptions after parsing the schema. Any field path that forms a circular reference is reported separately in the results. These are worth investigating — deeply nested circular queries can trigger server-side denial-of-service conditions.
+
+<Warning>
+Circular reference queries can cause significant resource consumption on the target server. Use them carefully and only against systems you have authorization to test.
+</Warning>
+
+## Multiple scan tabs
+
+The Scanner supports multiple simultaneous tabs. Open a new tab to scan a second endpoint while the first scan is still running. Each tab is independent: it has its own URL, headers, and result set. Tab titles default to the target host and can be renamed by double-clicking the tab label.
+
+## Sending queries to other Burp tools
+
+From the results view, right-click any generated query to send it directly to:
+
+- **Repeater** — for manual testing and modification
+- **Intruder** — for automated fuzzing
+- **Batch Queries tab** — to run batched attacks against the selected operation
+
+You can also trigger a scan from any GraphQL request already in Burp's Proxy history or Repeater by right-clicking the request and selecting the InQL context menu option.
+
+## Custom headers per domain
+
+InQL stores custom headers keyed to the target host. When you switch between Scanner tabs pointing at different domains, the stored headers for each domain load automatically. The domain list is populated from Burp's proxy history, so hosts you have already browsed appear in a dropdown.
+
+## Session persistence
+
+All scan results persist in Burp's project file. When you reopen a project, InQL restores every scanner tab with its results intact — you do not need to re-run scans between sessions.

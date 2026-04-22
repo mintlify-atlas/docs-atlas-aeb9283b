@@ -1,0 +1,127 @@
+---
+title: "How InQL integrates with Burp Suite's native tools"
+description: "How InQL integrates with Burp Suite's message editor, context menu, proxy history, scanner, and project file to streamline GraphQL security testing."
+---
+
+InQL registers itself deeply into Burp Suite at startup, adding a GraphQL-aware message editor tab, context menu actions, proxy request highlighting, native scanner checks, and automatic project file persistence. All of these integrations are active the moment InQL loads — no additional configuration is required to get started.
+
+## GraphQL message editor tab
+
+InQL registers a custom HTTP message editor provider (`StyledPayloadEditor`) with Burp at startup. This adds a **GraphQL (InQL)** tab to every message editor panel in Burp Suite — including Proxy, Repeater, and Intruder.
+
+When you open a request that contains a GraphQL body, the **GraphQL (InQL)** tab shows the query with:
+
+- **Syntax highlighting** — GraphQL keywords, field names, and arguments are color-coded.
+- **Auto-formatting** — the query body is pretty-printed with consistent indentation.
+- **Word wrap** — long lines wrap within the editor pane rather than requiring horizontal scrolling.
+- **Comment stripping on send** — when you forward or replay the request, inline GraphQL comments are stripped before the body is transmitted.
+
+You can configure formatting behavior using the keys below.
+
+| Config key | Default | Description |
+|---|---|---|
+| `editor.formatting.enabled` | `true` | Enable or disable auto-formatting in the editor |
+| `editor.formatting.wordwrap` | `true` | Enable or disable word wrap |
+| `editor.formatting.timeout` | `1000` | Formatting cutoff in milliseconds for large queries |
+| `editor.send_to.strip_comments` | `true` | Strip GraphQL comments before sending |
+
+## Context menu actions
+
+InQL registers a context menu handler (`SendToInqlHandler`) that adds three entries under a submenu whenever you right-click a request in Proxy, Repeater, or anywhere else Burp exposes a context menu on an HTTP message:
+
+<CardGroup cols={3}>
+  <Card title="Send to InQL Scanner" icon="magnifying-glass">
+    Sends the selected request to the InQL Scanner tab, pre-populating the target URL and headers. Use this to kick off an introspection scan directly from a captured request.
+  </Card>
+  <Card title="Send to InQL Batch Queries" icon="bolt">
+    Sends the request to the Batch Queries tab so you can test rate limit bypass and batching behavior against the same endpoint.
+  </Card>
+  <Card title="Send to InQL Engine Fingerprinting" icon="fingerprint">
+    Sends the request to the Engine Fingerprinting tab to identify the underlying GraphQL server implementation.
+  </Card>
+</CardGroup>
+
+<Tip>
+These context menu entries appear on any request, not just requests InQL has previously scanned. This lets you quickly route a newly captured GraphQL request into any InQL workflow without leaving the Proxy history view.
+</Tip>
+
+## Proxy request highlighting
+
+InQL polls Burp's proxy history at one-second intervals and automatically highlights any request it identifies as GraphQL traffic. This makes it easier to spot GraphQL requests at a glance without manually reviewing every entry.
+
+For each detected GraphQL request, InQL:
+
+1. Sets the row highlight color in the proxy history table.
+2. Sets the **Notes** annotation to `GraphQL` — or `GraphQL: <operationName>` if the request body includes a named operation.
+
+Highlighting is enabled by default. You can change the color or disable it entirely in InQL settings.
+
+| Config key | Default | Description |
+|---|---|---|
+| `proxy.highlight_enabled` | `true` | Enable or disable proxy history highlighting |
+| `proxy.highlight_color` | `Blue` | Highlight color applied to GraphQL requests |
+
+<Note>
+The `proxy.highlight_color` value must match a valid Burp `HighlightColor` display name (for example `Blue`, `Red`, `Orange`, `Green`, `Cyan`, `Magenta`, `Yellow`, `Pink`, `Gray`).
+</Note>
+
+## Burp Scanner integration
+
+InQL registers a `BurpScannerCheck` with Burp's native scanner engine. This check runs during both passive and active scans and raises issues when GraphQL-related signals are present in responses.
+
+<AccordionGroup>
+  <Accordion title="Passive audit: GraphQL technology detected">
+    During passive scanning, InQL searches every response body for patterns that indicate a GraphQL endpoint — specifically, introspection response fragments (`{"data":{"__schema":{`) and WebSocket subprotocol indicators (`graphql-ws`). When found, InQL raises an **Information**-severity issue titled **GraphQL Technology** against the target host.
+  </Accordion>
+  <Accordion title="Passive audit: exposed development console">
+    InQL also checks for strings associated with GraphQL development consoles — `GraphiQL`, `GraphQL Playground`, `GraphQL Console`, and `graphql-playground`. A match raises a **Low**-severity issue titled **Exposed GraphQL Development Console** with remediation guidance to gate the console behind a development-only environment check.
+  </Accordion>
+  <Accordion title="Active audit: common GraphQL paths probed">
+    During active scanning, InQL takes the base request and replays it against a list of common GraphQL endpoint paths:
+
+    ```text
+    /graphql
+    /graphql.php
+    /graphiql
+    /graphql/console/
+    /swapi-graphql/
+    /gql
+    /graphql/subscriptions
+    /graphql/subscription
+    ```
+
+    Each probed path is then passed through the passive audit logic. Issues found at probed paths are returned alongside any issues from the original request.
+  </Accordion>
+  <Accordion title="Issue deduplication">
+    InQL implements `consolidateIssues` to deduplicate scanner findings. If Burp finds an issue of the same type targeting the same host and port, it retains the existing issue and discards the duplicate. Issues from different hosts or ports are always kept separately.
+  </Accordion>
+</AccordionGroup>
+
+<Warning>
+Active scanning sends additional requests to the target, including probes to paths that may not have been part of the original test scope. Confirm your scope settings in Burp before enabling active scanning.
+</Warning>
+
+## Project file persistence
+
+InQL saves its state to Burp's project file automatically and restores it when you reopen the project. You do not need to manually export or import anything between sessions.
+
+The following data is persisted:
+
+<CardGroup cols={2}>
+  <Card title="Scanner results" icon="database">
+    All scan tabs, their target URLs, generated queries, and POI results survive across Burp restarts.
+  </Card>
+  <Card title="Profiles" icon="user">
+    Named profiles (endpoint URL and custom headers) are stored in the project file and reloaded on startup.
+  </Card>
+  <Card title="Batch Queries history" icon="clock-rotate-left">
+    The attacker tab state, including previously configured batch jobs, is restored from the project file.
+  </Card>
+  <Card title="Configuration" icon="sliders">
+    Project-scoped configuration values are stored separately from global preferences, so per-project settings do not affect other Burp projects.
+  </Card>
+</CardGroup>
+
+<Info>
+InQL uses two separate storage scopes: **project** (stored in the `.burp` project file) and **global** (stored in Burp's global preferences). Settings in the project scope take precedence over global defaults.
+</Info>

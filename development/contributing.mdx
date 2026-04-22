@@ -1,0 +1,75 @@
+---
+title: "Contributing to InQL — bugs, features, and docs"
+description: "Learn how to contribute to InQL through bug reports, feature requests, documentation improvements, and pull requests targeting the dev branch."
+---
+
+InQL is an open-source project that welcomes contributions from developers, security researchers, and technical writers. Whether you've found a bug, have an idea for a new feature, or want to improve the documentation, your input helps make InQL a stronger tool for the entire GraphQL security community.
+
+## Ways to contribute
+
+<CardGroup cols={2}>
+  <Card title="Bug reports" icon="bug">
+    Open an issue on the GitHub issue tracker with reproduction steps, expected behavior, and your environment details.
+  </Card>
+  <Card title="Feature requests" icon="lightbulb">
+    Describe the use case and the problem it solves. Research-backed proposals are especially welcome.
+  </Card>
+  <Card title="Documentation" icon="book">
+    Improve existing pages, fix inaccuracies, or add examples that help others use InQL more effectively.
+  </Card>
+  <Card title="Code contributions" icon="code">
+    Fix bugs or implement features by following the workflow below and opening a pull request to the `dev` branch.
+  </Card>
+</CardGroup>
+
+## Contribution workflow
+
+All development happens in the `dev` branch. Pull requests to `main` will not be accepted — `main` only contains released code.
+
+<Steps>
+  <Step title="Fork the repository">
+    Fork [doyensec/inql](https://github.com/doyensec/inql) on GitHub to create your own copy of the project.
+  </Step>
+  <Step title="Check out the dev branch">
+    The `dev` branch contains the latest in-progress work. Always branch off from `dev`, not `main`.
+
+    ```bash
+    git clone https://github.com/<your-username>/inql
+    cd inql
+    git checkout dev
+    ```
+  </Step>
+  <Step title="Build the existing code">
+    Verify the project compiles before making any changes. See [Building InQL](/development/building) for full setup instructions.
+
+    ```bash
+    task all
+    ```
+  </Step>
+  <Step title="Make your changes">
+    Implement your fix or feature in your fork. Keep commits focused and write clear commit messages that explain the intent of the change.
+  </Step>
+  <Step title="Open a pull request to dev">
+    Submit your pull request against the `dev` branch (not `main`). Explain the rationale in the PR description, or link to the issue your PR resolves.
+  </Step>
+</Steps>
+
+<Warning>
+  Always open pull requests against the `dev` branch. PRs targeting `main` will not be merged.
+</Warning>
+
+## Reporting issues
+
+The [GitHub issue tracker](https://github.com/doyensec/inql/issues) is the primary place to report bugs and request features. Before opening a new issue, search the existing ones to avoid duplicates.
+
+<Tip>
+  Issues labeled **Good First Issue** are a great starting point if you're new to the codebase.
+</Tip>
+
+## Getting in touch
+
+For questions and discussion beyond the issue tracker, you can reach the team on Twitter at [@Doyensec](https://twitter.com/Doyensec).
+
+## Maintainer
+
+InQL is currently maintained by **Bartłomiej Górkiewicz** ([@bartek-doyensec](https://github.com/bartek-doyensec)).

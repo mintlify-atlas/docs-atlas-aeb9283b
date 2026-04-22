@@ -1,97 +1,61 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "InQL: Advanced GraphQL Security Testing for Burp Suite"
+description: "InQL is an open-source Burp Suite extension for GraphQL security testing. Automate schema analysis, vulnerability detection, and attack simulation inside Burp."
 ---
 
-## Setting up
+InQL extends Burp Suite with purpose-built GraphQL security testing capabilities. It automatically introspects GraphQL endpoints, generates every possible query and mutation, detects vulnerabilities through Points of Interest scanning, and integrates seamlessly into your existing Burp workflow.
 
-Get your documentation site up and running in minutes.
-
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install InQL from the BApp Store or build from source with Java 17+
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Scan your first GraphQL endpoint and analyze the results in minutes
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Scanner" icon="magnifying-glass" href="/features/scanner">
+    Auto-generate queries, detect vulnerabilities, and analyze GraphQL schemas
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Batch Queries" icon="bolt" href="/features/batch-queries">
+    Test rate limiting with batch GraphQL attack simulation
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## What InQL does
 
-Everything you need to create world-class documentation.
+InQL is built for security professionals who test GraphQL APIs. It handles the tedious parts of GraphQL reconnaissance — introspection, query generation, schema analysis — so you can focus on finding vulnerabilities.
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
+<CardGroup cols={2}>
+  <Card title="Engine Fingerprinting" icon="fingerprint" href="/features/engine-fingerprinting">
+    Identify the GraphQL server technology behind any endpoint
   </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
+  <Card title="Schema Bruteforcer" icon="shield-halved" href="/features/schema-bruteforcer">
+    Recover the schema even when introspection is disabled
   </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
+  <Card title="Configuration" icon="gear" href="/configuration/settings">
+    Customize scan depth, POI categories, proxy highlighting, and more
   </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
+  <Card title="Integrations" icon="puzzle-piece" href="/integrations/burp-suite">
+    GraphiQL, Voyager, and native Burp Suite message editor support
   </Card>
-</Columns>
+</CardGroup>
 
-## Need inspiration?
+## Key capabilities
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<Steps>
+  <Step title="Introspect and analyze">
+    Point InQL at any GraphQL endpoint or load a local schema file. InQL automatically runs introspection and builds a complete map of all queries, mutations, and subscriptions.
+  </Step>
+  <Step title="Detect vulnerabilities">
+    Run a Points of Interest scan to surface fields related to authentication, PII, payments, file operations, and more. Enable circular reference detection to find potentially dangerous recursive queries.
+  </Step>
+  <Step title="Generate and send">
+    Send any auto-generated query directly to Burp Repeater, Intruder, or other tools. Use the built-in GraphQL editor tab on any request for syntax highlighting and formatting.
+  </Step>
+  <Step title="Attack and fingerprint">
+    Use Batch Queries to test rate limit bypass scenarios. Run Engine Fingerprinting to identify the underlying GraphQL server. Bruteforce the schema if introspection is disabled.
+  </Step>
+</Steps>
+
+<Note>
+  InQL supports both Burp Suite Professional and Community editions. It requires Java 17 or later via the Montoya API.
+</Note>

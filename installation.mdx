@@ -1,0 +1,123 @@
+---
+title: "Installing InQL into Burp Suite: BApp Store and Source"
+description: "Install InQL in Burp Suite via the BApp Store for the easiest setup, or build from source using Java 17 and Taskfile to run the latest development version."
+keywords: ["InQL", "installation", "Burp Suite", "BApp Store", "build from source", "Java 17", "Taskfile"]
+---
+
+InQL is distributed through the Burp Suite BApp Store, which is the simplest way to get started. If you want the latest development changes or need to build from source, you can clone the repository and compile it yourself. Both paths require Burp Suite (Professional or Community) running on Java 17 or later.
+
+## Requirements
+
+Before installing InQL, confirm your environment meets these requirements:
+
+- **Burp Suite** — Professional or Community edition, latest version. InQL only supports the current release.
+- **Java 17+** — Required by the Montoya API that InQL uses internally. Earlier Java versions are not supported.
+
+## Option 1: BApp Store (recommended)
+
+The BApp Store is the fastest way to install InQL. Burp Suite handles downloading and loading the extension automatically.
+
+<Steps>
+  <Step title="Open the BApp Store">
+    In Burp Suite, go to the **Extensions** tab and click **BApp Store**.
+  </Step>
+  <Step title="Search for InQL">
+    Type `InQL` in the search box. The extension should appear in the results.
+  </Step>
+  <Step title="Install the extension">
+    Click **Install** next to InQL. Burp downloads and loads the extension automatically.
+  </Step>
+  <Step title="Verify installation">
+    After installation completes, you should see an **InQL** tab appear in the main Burp toolbar. Click it to confirm the Scanner, Batch Queries, and Engine Fingerprinting tabs are visible.
+  </Step>
+</Steps>
+
+## Option 2: Build from source
+
+Building from source gives you control over which version you run and lets you test development builds. The `dev` branch contains unreleased changes that may be unstable.
+
+### Prerequisites
+
+You need Java 17+ and Taskfile installed before building.
+
+<Tabs>
+  <Tab title="macOS">
+    Install Java 17 and Taskfile using Homebrew:
+
+    ```bash
+    brew install openjdk@17
+    brew install go-task
+    ```
+  </Tab>
+  <Tab title="Debian / Ubuntu">
+    Install Java 17 and Taskfile using apt:
+
+    ```bash
+    sudo apt install -y openjdk-17-jdk task
+    ```
+
+    Verify Java is installed:
+
+    ```bash
+    java --version
+    # openjdk 17.0.6 2023-01-17
+    ```
+  </Tab>
+</Tabs>
+
+### Build steps
+
+<Steps>
+  <Step title="Clone the repository">
+    Clone the InQL repository and pull all submodules:
+
+    ```bash
+    git clone https://github.com/doyensec/inql
+    cd inql
+    ```
+  </Step>
+  <Step title="Check out the dev branch (optional)">
+    The `main` branch contains released code. The `dev` branch has the latest changes that haven't been released yet.
+
+    ```bash
+    git checkout dev
+    ```
+
+    <Warning>
+      The `dev` branch may be unstable or broken. Use it only if you specifically need unreleased features or are contributing to the project.
+    </Warning>
+  </Step>
+  <Step title="Build the extension">
+    Run the build task to compile the Kotlin source and bundle all dependencies:
+
+    ```bash
+    task all
+    ```
+
+    This builds the web apps (GraphiQL, Voyager) and then compiles the Kotlin extension. When it finishes, you'll have an `InQL.jar` file in the root of the repository.
+  </Step>
+  <Step title="Load InQL.jar into Burp">
+    In Burp Suite, go to **Extensions** → **Installed** → **Add**. Set the extension type to **Java** and select the `InQL.jar` file you just built. Click **Next** to load the extension.
+
+    <Tip>
+      Burp saves the extension path in your project. You don't need to re-add it the next time you open Burp — it loads automatically.
+    </Tip>
+  </Step>
+  <Step title="Verify installation">
+    Look for the **InQL** tab in the main Burp toolbar. Click it to confirm the Scanner, Batch Queries, and Engine Fingerprinting tabs are all present.
+  </Step>
+</Steps>
+
+## Development builds
+
+If you're actively developing InQL, you can speed up the iteration cycle by watching for source changes and rebuilding automatically:
+
+```bash
+task kotlin -w
+```
+
+This watches your Kotlin source files and rebuilds `InQL.jar` whenever you save a change. You'll still need to reload the extension in Burp after each rebuild.
+
+<Note>
+  See the [contributing guide](/development/contributing) if you want to submit changes back to the project. Pull requests go to the `dev` branch, not `main`.
+</Note>

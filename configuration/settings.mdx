@@ -1,0 +1,119 @@
+---
+title: "InQL settings reference: all configuration keys and defaults"
+description: "Complete reference for every InQL configuration key, grouped by category, with defaults, accepted values, and guidance on global vs. project scope."
+---
+
+InQL stores its configuration in two separate scopes within Burp Suite: **Global** settings persist across all Burp projects and survive Burp restarts, while **Project** settings are saved inside the current `.burp` project file and travel with it. When both scopes have a value for the same key, the project-scoped value wins. If neither scope has a value, InQL falls back to the built-in default listed in this reference.
+
+To open the settings panel, click the **InQL** tab in Burp Suite and scroll down to the settings section at the bottom of the tab. All settings in the UI write to the **Global** scope.
+
+<Info>
+Changes to most settings take effect immediately. A few integration settings — such as enabling or disabling GraphiQL or Voyager — may require you to reload the extension or restart Burp Suite.
+</Info>
+
+## Code generation
+
+These settings control how InQL generates GraphQL query text from a scanned schema.
+
+| Setting | Config key | Default | Description |
+|---|---|---|---|
+| Maximum query depth | `codegen.depth` | `2` | How many levels of nested fields InQL expands in generated queries. Fields deeper than this limit appear as a commented-out placeholder. |
+| Indentation width | `codegen.pad` | `4` | Number of spaces used for each indentation level in generated queries. |
+
+<Tip>
+Increase `codegen.depth` when you need to inspect deeply nested types. Keep it low (2–3) for most assessments to keep generated queries readable and avoid very long request bodies.
+</Tip>
+
+## Features
+
+These settings enable or disable InQL's editor and proxy integration features.
+
+<AccordionGroup>
+  <Accordion title="Proxy highlighting">
+
+    | Setting | Config key | Default | Description |
+    |---|---|---|---|
+    | Enable proxy highlighting | `proxy.highlight_enabled` | `true` | Automatically highlights GraphQL requests in Burp's Proxy history and annotates them with the operation name. |
+    | Highlight color | `proxy.highlight_color` | `BLUE` | Color used to highlight GraphQL requests. Accepts any Burp `HighlightColor` display name: `Red`, `Orange`, `Yellow`, `Green`, `Cyan`, `Blue`, `Pink`, `Magenta`, `Gray`. |
+
+    <Note>
+    Changing `proxy.highlight_enabled` takes effect immediately via a live hook — no restart required. The highlighter polls Burp's proxy history every second and annotates new GraphQL requests as they arrive.
+    </Note>
+
+  </Accordion>
+  <Accordion title="GraphQL editor">
+
+    | Setting | Config key | Default | Description |
+    |---|---|---|---|
+    | Enable formatting | `editor.formatting.enabled` | `true` | Automatically formats GraphQL in InQL's built-in editor. |
+    | Word wrap | `editor.formatting.wordwrap` | `true` | Wraps long lines in the GraphQL editor. |
+    | Formatting timeout | `editor.formatting.timeout` | `1000` | Milliseconds before the formatter gives up on a single formatting pass. Increase this for very large queries. |
+    | Formatter cache size | `editor.formatting.cache_size_kb` | `102400` | Approximate maximum memory for the formatting cache, in kilobytes. Default is 100 MB. Changing this takes effect immediately. |
+    | Strip comments when sending | `editor.send_to.strip_comments` | `true` | Removes GraphQL comments from query text when sending a request to another Burp tool (Repeater, Intruder, etc.) from the Scanner results view. |
+
+  </Accordion>
+</AccordionGroup>
+
+## Integrations
+
+These settings configure InQL's embedded web tools.
+
+| Setting | Config key | Default | Description |
+|---|---|---|---|
+| Enable GraphiQL | `integrations.graphiql` | `true` | Enables the embedded GraphiQL IDE, accessible from the InQL tab. |
+| Enable Voyager | `integrations.voyager` | `true` | Enables the embedded GraphQL Voyager schema visualizer. |
+| Use embedded browser | `integrations.browser.internal` | `true` | Opens GraphiQL and Voyager in Burp's embedded Chromium browser. Disable to use an external browser instead. |
+| External browser command | `integrations.browser.external.command` | `""` | Shell command used to launch an external browser when `integrations.browser.internal` is `false`. Example: `/usr/bin/firefox`. |
+| Lazy-start web server | `integrations.webserver.lazy` | `true` | When enabled, the internal web server that hosts GraphiQL and Voyager only starts when you first send a request to an IDE from the context menu. Disable to start the server immediately on extension load. |
+
+<Warning>
+Disabling `integrations.webserver.lazy` and setting `integrations.browser.internal` to `false` both require you to reload the InQL extension or restart Burp Suite before the change takes effect.
+</Warning>
+
+## Schema bruteforcer
+
+These settings control InQL's schema bruteforcer feature. See [Schema bruteforcer](/features/schema-bruteforcer) for a full guide.
+
+| Setting | Config key | Default | Description |
+|---|---|---|---|
+| Bucket size | `bruteforcer.bucket_size` | `64` | Number of candidate field names sent in each batch request. |
+| Depth limit | `bruteforcer.depth_limit` | `2` | Maximum nesting depth to probe. |
+| Concurrency | `bruteforcer.concurrency_limit` | `8` | Maximum number of in-flight HTTP requests at any time. |
+| Bruteforce arguments | `bruteforcer.bruteforce_arguments` | `true` | Whether to also probe argument names for discovered fields. |
+| Custom field wordlist | `bruteforcer.custom_wordlist` | `""` | Path to a custom wordlist file for field names. Leave empty to use the built-in wordlist. |
+| Custom argument wordlist | `bruteforcer.custom_arg_wordlist` | `""` | Path to a custom wordlist file for argument names. Leave empty to use the built-in wordlist. |
+
+## Reports
+
+These settings control which output files InQL generates after a scan.
+
+| Setting | Config key | Default | Description |
+|---|---|---|---|
+| Save JSON schema | `report.json` | `true` | Saves the raw introspection response as a JSON file alongside the scan results. |
+| Save SDL schema | `report.sdl` | `true` | Saves the schema in SDL (Schema Definition Language) format. |
+| Detect circular references | `report.cycles` | `true` | Runs cycle detection on the schema and reports any field paths that form circular references. |
+| Cycle detection max depth | `report.cycles.depth` | `100` | Maximum depth for the cycle detection traversal. |
+
+## Points of Interest
+
+These settings control InQL's Points of Interest (POI) scan. See [POI categories](/configuration/poi-categories) for the full list of categories and their keyword sets.
+
+| Setting | Config key | Default | Description |
+|---|---|---|---|
+| Enable POI scan | `report.poi` | `true` | Runs the POI keyword scan after each schema analysis. |
+| POI scan depth | `report.poi.depth` | `2` | How many levels of nested types the POI scanner traverses. |
+| POI output format | `report.poi.format` | `"text"` | Output format for POI results. Accepted values: `text`, `json`, `both`. |
+
+Individual POI categories can be toggled on or off independently. See [POI categories](/configuration/poi-categories) for per-category config keys and their defaults.
+
+After changing POI settings, click **Re-scan POI** in the settings panel to apply the new configuration to all existing scan results without re-running a full scan.
+
+## Logging
+
+| Setting | Config key | Default | Description |
+|---|---|---|---|
+| Log level | `logging.level` | `"WARNING"` | Controls the verbosity of InQL's output to the Burp extension console. Accepted values: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`. Changing this takes effect immediately. |
+
+<Tip>
+Set `logging.level` to `DEBUG` when troubleshooting unexpected behavior. Switch back to `WARNING` or `ERROR` during normal use to keep the console output clean.
+</Tip>
